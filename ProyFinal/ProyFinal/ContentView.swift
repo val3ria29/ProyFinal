@@ -1,4 +1,5 @@
 import SwiftUI
+import Firebase
 
 struct ContentView: View {
     @State private var showSplash = true
@@ -25,7 +26,7 @@ struct ContentView: View {
                 VStack {
                     Text("¡Hola, mundo!")
                         .font(.largeTitle)
-                        .foregroundColor(.blue)
+                        .foregroundColor(.yellow)
 
                     Button(action: {
                         // Acción del botón
@@ -34,7 +35,7 @@ struct ContentView: View {
                             .font(.title)
                             .foregroundColor(.white)
                             .padding()
-                            .background(Color.blue)
+                            .background(Color.yellow)
                             .cornerRadius(10)
                     }
                 }
@@ -66,63 +67,79 @@ struct LoginView: View {
     @State private var isLoginValid = true
     @State private var loginWarning = ""
     @State private var isFieldEmpty = false
+    @State private var isUserLoggedIn = false //Se agrega la variable para podernos mover
     
     var body: some View {
-        VStack {
-            Image("Logotipo")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 100, height: 100)
-                .padding()
-            
-            TextField("Username", text: $username)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
+        NavigationView {
+            VStack {
+                Image("Logotipo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 100, height: 100)
+                    .padding()
+                
+                TextField("Username", text: $username)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding()
 
-            SecureField("Password", text: $password)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
-                .foregroundColor(isLoginValid ? .primary : .red)
-            
-            if !isLoginValid {
-                Text(loginWarning)
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.bottom, 4)
-            }
-            
-            if isFieldEmpty {
-                Text("Todos los campos deben ser completados.")
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.bottom, 4)
-            }
-            
-            NavigationLink(destination: RegistrationView()) {
-                Text("¿No tienes una cuenta? Regístrate aquí.")
-                    .font(.caption)
-                    .foregroundColor(.blue)
-            }
-            .padding(.bottom, 12)
-
-            Button("Iniciar sesión") {
-                if isLoginInputValid() {
-                    // Validar los datos de inicio de sesión con la base de datos
-                    // Si los datos son válidos, establecer el estado de isLoggedIn en true
-                    // para redirigir a la vista MainView
-                    // isLoggedIn = true
-                } else {
-                    isFieldEmpty = true
-                    // Mostrar mensaje de error o realizar acciones cuando el inicio de sesión no sea válido
+                SecureField("Password", text: $password)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding()
+                    .foregroundColor(isLoginValid ? .primary : .red)
+                
+                if !isLoginValid {
+                    Text(loginWarning)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.bottom, 4)
                 }
+                
+                if isFieldEmpty {
+                    Text("Todos los campos deben ser completados.")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.bottom, 4)
+                }
+                
+                NavigationLink(destination: RegistrationUsersView()) {
+                    Text("¿No tienes una cuenta? Regístrate aquí.")
+                        .font(.caption)
+                        .foregroundColor(.yellow)
+                }
+                .padding(.bottom, 12)
+
+                Button("Iniciar sesión") {
+                    if isLoginInputValid() {
+                        Auth.auth().signIn(withEmail: username, password: password) { result, error in
+                        if let error = error {
+                            print("Error: \(error.localizedDescription)")
+                        } else {
+                            print("Ingresando...")
+                            isUserLoggedIn = true
+                            let mainView = MainView()
+                                            let navView = NavigationView {
+                                                mainView
+                                            }
+                                            navView.navigationBarBackButtonHidden(true)
+                                            UIApplication.shared.windows.first?.rootViewController = UIHostingController(rootView: navView)
+                                            
+                        }
+                    } //se agrega todo eso
+                    } else {
+                        isFieldEmpty = true
+                        // Mostrar mensaje de error o realizar acciones cuando el inicio de sesión no sea válido
+                    }
+                }
+                .padding()
+                .background(Color.yellow)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+                .padding()
+
+                NavigationLink(destination: MainView(), isActive: $isUserLoggedIn) { EmptyView() } //Para que si es correcto, se dirija
             }
             .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(10)
-            .padding()
-        }
-        .padding()
+        } //Se agrega la navigation view
     }
     
     private func isLoginInputValid() -> Bool {
@@ -136,9 +153,7 @@ struct LoginView_Previews: PreviewProvider {
     }
 }
 
-import SwiftUI
-
-struct RegistrationView: View {
+struct RegistrationUsersView: View {
     @State private var username = ""
     @State private var password = ""
     @State private var confirmPassword = ""
@@ -147,70 +162,52 @@ struct RegistrationView: View {
     @State private var passwordsMatch = true
     @State private var passwordsMatchWarning = ""
     @State private var isFieldEmpty = false
+    @State private var isUserRegistered = false
 
     var body: some View {
-        VStack {
-            TextField("Username", text: $username)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
+        NavigationView {
+            VStack {
+                TextField("Username", text: $username)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding()
+
+                SecureField("Password", text: $password)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding()
+
+                SecureField("Confirm Password", text: $confirmPassword)
+                    .textFieldStyle(RoundedBorderTextFieldStyle())
+                    .padding()
+
+                Button("Register") {
+                    if isRegistrationValid() {
+                        Auth.auth().createUser(withEmail: username, password: password) { result, error in
+                                if let error = error {
+                                    print("Error: \(error.localizedDescription)")
+                                } else {
+                                    print("Registro correcto.")
+                                   isUserRegistered = true //se agrega
+                                }
+                            }
+                    } else {
+                        isFieldEmpty = true
+                        // Mostrar mensaje de error o realizar acciones cuando el registro no sea válido
+                    }
+                }
+                .padding()
+                .background(Color.yellow)
+                .foregroundColor(.white)
+                .cornerRadius(10)
                 .padding()
 
-            SecureField("Password", text: $password)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
-                .onChange(of: password) { newValue in
-                    validatePassword()
-                    validatePasswordMatch()
-                }
-                .foregroundColor(isPasswordValid ? .primary : .red)
-            
-            if !isPasswordValid {
-                Text(passwordWarning)
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.bottom, 4)
+                NavigationLink(destination: MainView(), isActive: $isUserRegistered) { EmptyView() } //Para que si es correcto, se dirija
             }
-
-            SecureField("Confirm Password", text: $confirmPassword)
-                .textFieldStyle(RoundedBorderTextFieldStyle())
-                .padding()
-                .onChange(of: confirmPassword) { newValue in
-                    validatePasswordMatch()
-                }
-                .foregroundColor(passwordsMatch ? .primary : .red)
-            
-            if !passwordsMatch {
-                Text(passwordsMatchWarning)
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.bottom, 4)
-            }
-            
-            if isFieldEmpty {
-                Text("Todos los campos deben ser completados.")
-                    .font(.caption)
-                    .foregroundColor(.red)
-                    .padding(.bottom, 4)
-            }
-
-            Button("Register") {
-                if isRegistrationValid() {
-                    // Registro válido, realizar acciones necesarias
-                } else {
-                    isFieldEmpty = true
-                    // Mostrar mensaje de error o realizar acciones cuando el registro no sea válido
-                }
-            }
-            .padding()
-            .background(Color.blue)
-            .foregroundColor(.white)
-            .cornerRadius(10)
             .padding()
         }
-        .padding()
     }
 
     private func validatePassword() {
-        let passwordRegex = "^(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[$@$#!%*?&])[A-Za-z\\d$@$#!%*?&]{8,}$"
+        let passwordRegex = "^(?=.[0-9])(?=.[a-z])(?=.[A-Z])(?=.[$@$#!%?&])[A-Za-z\\d$@$#!%?&]{8,}$"
         let passwordPredicate = NSPredicate(format: "SELF MATCHES %@", passwordRegex)
         isPasswordValid = passwordPredicate.evaluate(with: password)
 
@@ -220,25 +217,9 @@ struct RegistrationView: View {
             passwordWarning = ""
         }
     }
-    
-    private func validatePasswordMatch() {
-        passwordsMatch = password == confirmPassword
-        
-        if !passwordsMatch {
-            passwordsMatchWarning = "Las contraseñas no coinciden."
-        } else {
-            passwordsMatchWarning = ""
-        }
-    }
 
     private func isRegistrationValid() -> Bool {
         return isPasswordValid && passwordsMatch && !username.isEmpty && !password.isEmpty && !confirmPassword.isEmpty
-    }
-}
-
-struct RegistrationView_Previews: PreviewProvider {
-    static var previews: some View {
-        RegistrationView()
     }
 }
 
@@ -250,50 +231,50 @@ struct MainView: View {
     @State private var isLoggedIn = true
     
     var body: some View {
-        VStack {
-            Text("Bienvenido")
-                .font(.title)
+        NavigationView {
+            VStack {
+                Text("Bienvenido")
+                    .font(.title)
+                    .padding()
+                
+                Spacer()
+                
+                Button("Lista") {
+                    showListView = true
+                }
+                .font(.headline)
                 .padding()
+                .sheet(isPresented: $showListView) {
+                    ListView()
+                }
+                
+                Button("Registrar") {
+                    showRegisterView = true
+                }
+                .font(.headline)
+                .padding()
+                .sheet(isPresented: $showRegisterView) {
+                    RegisterView()
+                }
+                
+                Button("Preguntas") {
+                    showQuestionsView = true
+                }
+                .font(.headline)
+                .padding()
+                .sheet(isPresented: $showQuestionsView) {
+                    QuestionsView()
+                }
+                
+                Button("Cerrar Sesión") {
+                    isLoggedIn = false
+                }
+                .font(.headline)
+                .padding()
+                
+                Spacer()
+            }
             
-            Spacer()
-            
-            Button("Lista") {
-                showListView = true
-            }
-            .font(.headline)
-            .padding()
-            .sheet(isPresented: $showListView) {
-                ListView()
-            }
-            
-            Button("Registrar") {
-                showRegisterView = true
-            }
-            .font(.headline)
-            .padding()
-            .sheet(isPresented: $showRegisterView) {
-                RegisterView()
-            }
-            
-            Button("Preguntas") {
-                showQuestionsView = true
-            }
-            .font(.headline)
-            .padding()
-            .sheet(isPresented: $showQuestionsView) {
-                QuestionsView()
-            }
-            
-            Button("Cerrar Sesión") {
-                isLoggedIn = false
-            }
-            .font(.headline)
-            .padding()
-            
-            Spacer()
-        }
-        .fullScreenCover(isPresented: $isLoggedIn) {
-            LoginView()
         }
     }
 }
@@ -370,14 +351,9 @@ struct RegisterView_Previews: PreviewProvider {
 struct QuestionsView: View {
     var body: some View {
         VStack {
-            Text("¿Dónde puede registrar turnos?")
+            Text("¿Dónde puedo registrar turnos?")
                 .font(.title)
                 .padding()
-            
-            Button("Registrar") {
-                // Acciones al hacer clic en el botón de registrar
-            }
-            .padding()
         }
         .navigationTitle("Preguntas")
     }
